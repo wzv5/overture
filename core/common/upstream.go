@@ -12,5 +12,6 @@ type DNSUpstream struct {
 		InitialCapacity int
 		MaxCapacity     int
 		IdleTimeout     int
+		MaxIdle         int
 	}
 }

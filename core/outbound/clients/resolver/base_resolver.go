@@ -6,12 +6,13 @@
 package resolver
 
 import (
+	"net"
+	"time"
+
 	"github.com/miekg/dns"
 	"github.com/silenceper/pool"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
-	"net"
-	"time"
 
 	"github.com/shawn1m/overture/core/common"
 )
@@ -60,6 +61,9 @@ func (r *BaseResolver) Init() error {
 		}
 		if r.dnsUpstream.TCPPoolConfig.InitialCapacity != 0 {
 			InitialCapacity = r.dnsUpstream.TCPPoolConfig.InitialCapacity
+		}
+		if r.dnsUpstream.TCPPoolConfig.MaxIdle != 0 {
+			MaxIdle = r.dnsUpstream.TCPPoolConfig.MaxIdle
 		}
 	}
 	return nil
@@ -128,6 +132,7 @@ func (r *BaseResolver) CreateBaseConn() (net.Conn, error) {
 var InitialCapacity = 0
 var IdleTimeout = 30 * time.Second
 var MaxCapacity = 15
+var MaxIdle = 2
 
 func (r *BaseResolver) setTimeout(conn net.Conn) {
 	dnsTimeout := time.Duration(r.dnsUpstream.Timeout) * time.Second / 3
@@ -150,6 +155,7 @@ func (r *BaseResolver) createConnectionPool(connCreate func() (interface{}, erro
 	poolConfig := &pool.Config{
 		InitialCap: InitialCapacity,
 		MaxCap:     MaxCapacity,
+		MaxIdle:    MaxIdle,
 		Factory:    connCreate,
 		Close:      connClose,
 		//Ping:       ping,
