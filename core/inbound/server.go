@@ -129,6 +129,27 @@ func (s *Server) Run() {
 		}(p)
 	}
 
+	if s.bindAddress == "[::1]:53" {
+		for _, p := range [2]string{"tcp", "udp"} {
+			go func(p string) {
+
+				// Manual create server inorder to have a way to close it.
+				srv := &dns.Server{Addr: "127.0.0.1:53", Net: p, Handler: mux}
+				go func() {
+					<-s.ctx.Done()
+					log.Warnf("Shutting down the server on protocol %s", p)
+					srv.ShutdownContext(s.ctx)
+				}()
+				err := srv.ListenAndServe()
+				if err != nil {
+					log.Fatalf("Listening on port %s failed: %s", p, err)
+					os.Exit(1)
+				}
+				wg.Done()
+			}(p)
+		}
+	}
+
 	if s.debugHttpAddress != "" {
 		s.HTTPMux.HandleFunc("/cache", s.DumpCache)
 		s.HTTPMux.HandleFunc("/debug/pprof/", pprof.Index)
