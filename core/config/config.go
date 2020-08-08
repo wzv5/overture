@@ -67,6 +67,8 @@ type Config struct {
 	IPNetworkAlternativeSet     *common.IPSet
 	Hosts                       *hosts.Hosts
 	Cache                       *cache.Cache
+
+	AlternativeFirst bool
 }
 
 // New config with json file and do some other initiate works

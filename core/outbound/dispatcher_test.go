@@ -35,6 +35,8 @@ func init() {
 
 		Hosts: conf.Hosts,
 		Cache: conf.Cache,
+
+		AlternativeFirst: conf.AlternativeFirst,
 	}
 	dispatcher.Init()
 }
