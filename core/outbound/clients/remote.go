@@ -8,9 +8,10 @@
 package clients
 
 import (
+	"net"
+
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
-	"net"
 
 	"github.com/shawn1m/overture/core/cache"
 	"github.com/shawn1m/overture/core/common"
@@ -104,5 +105,9 @@ func (c *RemoteClient) logAnswer(indicator string) {
 			name = c.dnsUpstream.Name
 		}
 		log.Debugf("Answer from %s: %s", name, a.String())
+	}
+
+	if common.GetEDNSClientSubnetIP(c.questionMessage) != "" && common.GetEDNSClientSubnetIP(c.responseMessage) == "" {
+		log.Warnf("服务器不支持 EDNS：%s", c.dnsUpstream.Name)
 	}
 }
