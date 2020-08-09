@@ -46,8 +46,10 @@ type Config struct {
 	DomainFile struct {
 		Primary            string
 		Alternative        string
+		Block              string
 		PrimaryMatcher     string
 		AlternativeMatcher string
+		BlockMatcher       string
 		Matcher            string
 	}
 	HostsFile struct {
@@ -69,6 +71,7 @@ type Config struct {
 	Cache                       *cache.Cache
 
 	AlternativeFirst bool
+	BlockDomainList  matcher.Matcher
 }
 
 // New config with json file and do some other initiate works
@@ -80,6 +83,7 @@ func NewConfig(configFile string) *Config {
 
 	config.DomainPrimaryList = initDomainMatcher(config.DomainFile.Primary, config.DomainFile.PrimaryMatcher, config.DomainFile.Matcher)
 	config.DomainAlternativeList = initDomainMatcher(config.DomainFile.Alternative, config.DomainFile.AlternativeMatcher, config.DomainFile.Matcher)
+	config.BlockDomainList = initDomainMatcher(config.DomainFile.Block, config.DomainFile.BlockMatcher, config.DomainFile.Matcher)
 
 	config.IPNetworkPrimarySet = getIPNetworkSet(config.IPNetworkFile.Primary)
 	config.IPNetworkAlternativeSet = getIPNetworkSet(config.IPNetworkFile.Alternative)

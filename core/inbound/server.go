@@ -16,6 +16,8 @@ import (
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/shawn1m/overture/core/common"
+	"github.com/shawn1m/overture/core/matcher"
 	"github.com/shawn1m/overture/core/outbound"
 )
 
@@ -27,14 +29,17 @@ type Server struct {
 	HTTPMux          *http.ServeMux
 	ctx              context.Context
 	cancel           context.CancelFunc
+
+	blockDomainList matcher.Matcher
 }
 
-func NewServer(bindAddress string, debugHTTPAddress string, dispatcher outbound.Dispatcher, rejectQType []uint16) *Server {
+func NewServer(bindAddress string, debugHTTPAddress string, dispatcher outbound.Dispatcher, rejectQType []uint16, blockDomainList matcher.Matcher) *Server {
 	s := &Server{
 		bindAddress:      bindAddress,
 		debugHttpAddress: debugHTTPAddress,
 		dispatcher:       dispatcher,
 		rejectQType:      rejectQType,
+		blockDomainList:  blockDomainList,
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.HTTPMux = http.NewServeMux()
@@ -200,7 +205,13 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, q *dns.Msg) {
 		}
 	}
 
-	responseMessage := s.dispatcher.Exchange(q, inboundIP)
+	var responseMessage *dns.Msg
+	if s.isBlockDomain(q) {
+		responseMessage = common.EmptyDNSMsg(q)
+		log.Debugf("Block %s: %s", inboundIP, q.Question[0].String())
+	} else {
+		responseMessage = s.dispatcher.Exchange(q, inboundIP)
+	}
 
 	if responseMessage == nil {
 		dns.HandleFailed(w, q)
@@ -215,3 +226,9 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, q *dns.Msg) {
 }
 
 func isQuestionType(q *dns.Msg, qt uint16) bool { return q.Question[0].Qtype == qt }
+
+func (s *Server) isBlockDomain(query *dns.Msg) bool {
+	name := query.Question[0].Name
+	name = name[:len(name)-1]
+	return s.blockDomainList.Has(name)
+}

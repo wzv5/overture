@@ -81,3 +81,10 @@ func SetTTLByMap(msg *dns.Msg, domainTTLMap map[string]uint32) {
 		}
 	}
 }
+
+func EmptyDNSMsg(query *dns.Msg) *dns.Msg {
+	msg := new(dns.Msg)
+	msg.SetReply(query)
+	msg.RecursionAvailable = true
+	return msg
+}
