@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/miekg/dns"
 )
 
 var logger *log.Logger = log.New(os.Stdout, "", log.Ldate|log.Ltime)
@@ -17,6 +19,6 @@ func SetQueryLogFile(filename string) error {
 	return nil
 }
 
-func Log(ip string, domain string, tag string) {
-	logger.Printf("%s: %s [%s]\n", ip, strings.TrimRight(domain, "."), tag)
+func Log(ip string, domain string, query uint16, tag string) {
+	logger.Printf("%s: %s %s [%s]\n", ip, strings.TrimRight(domain, "."), dns.Type(query).String(), tag)
 }
