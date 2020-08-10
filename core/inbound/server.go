@@ -32,17 +32,19 @@ type Server struct {
 	cancel           context.CancelFunc
 
 	blockDomainList   matcher.Matcher
+	blockIPList       *common.IPSet
 	replaceDomainList *replace.DomainReplace
 	replaceIPList     *replace.IPReplace
 }
 
-func NewServer(bindAddress string, debugHTTPAddress string, dispatcher outbound.Dispatcher, rejectQType []uint16, blockDomainList matcher.Matcher, replaceDomainList *replace.DomainReplace, replaceIPList *replace.IPReplace) *Server {
+func NewServer(bindAddress string, debugHTTPAddress string, dispatcher outbound.Dispatcher, rejectQType []uint16, blockDomainList matcher.Matcher, blockIPList *common.IPSet, replaceDomainList *replace.DomainReplace, replaceIPList *replace.IPReplace) *Server {
 	s := &Server{
 		bindAddress:       bindAddress,
 		debugHttpAddress:  debugHTTPAddress,
 		dispatcher:        dispatcher,
 		rejectQType:       rejectQType,
 		blockDomainList:   blockDomainList,
+		blockIPList:       blockIPList,
 		replaceDomainList: replaceDomainList,
 		replaceIPList:     replaceIPList,
 	}
@@ -230,6 +232,22 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, q *dns.Msg) {
 		dns.HandleFailed(w, q)
 		return
 	}
+
+	var answer []dns.RR
+	for _, i := range responseMessage.Answer {
+		var ip net.IP
+		if i.Header().Rrtype == dns.TypeA {
+			ip = net.ParseIP(i.(*dns.A).A.String())
+		} else if i.Header().Rrtype == dns.TypeAAAA {
+			ip = net.ParseIP(i.(*dns.AAAA).AAAA.String())
+		}
+		if s.blockIPList.Contains(ip, false, "block") {
+			log.Debugf("block IP: %s - %s - %s", inboundIP, q.Question[0].Name, ip)
+			continue
+		}
+		answer = append(answer, i)
+	}
+	responseMessage.Answer = answer
 
 	// 在结果中还原被替换的域名
 	responseMessage.SetReply(q)

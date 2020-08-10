@@ -47,10 +47,8 @@ type Config struct {
 	DomainFile struct {
 		Primary            string
 		Alternative        string
-		Block              string
 		PrimaryMatcher     string
 		AlternativeMatcher string
-		BlockMatcher       string
 		Matcher            string
 	}
 	HostsFile struct {
@@ -62,9 +60,14 @@ type Config struct {
 	CacheSize     int
 	RejectQType   []uint16
 	ReplaceFile   struct {
-		DomainFile   string
-		IPFile       string
-		Finder       string
+		DomainFile string
+		IPFile     string
+		Finder     string
+	}
+	BlockFile struct {
+		DomainFile string
+		IPFile     string
+		Matcher    string
 	}
 
 	DomainTTLMap                map[string]uint32
@@ -78,6 +81,7 @@ type Config struct {
 
 	AlternativeFirst  bool
 	BlockDomainList   matcher.Matcher
+	BlockIPList       *common.IPSet
 	ReplaceDomainList *replace.DomainReplace
 	ReplaceIPList     *replace.IPReplace
 }
@@ -91,10 +95,12 @@ func NewConfig(configFile string) *Config {
 
 	config.DomainPrimaryList = initDomainMatcher(config.DomainFile.Primary, config.DomainFile.PrimaryMatcher, config.DomainFile.Matcher)
 	config.DomainAlternativeList = initDomainMatcher(config.DomainFile.Alternative, config.DomainFile.AlternativeMatcher, config.DomainFile.Matcher)
-	config.BlockDomainList = initDomainMatcher(config.DomainFile.Block, config.DomainFile.BlockMatcher, config.DomainFile.Matcher)
 
 	config.IPNetworkPrimarySet = getIPNetworkSet(config.IPNetworkFile.Primary)
 	config.IPNetworkAlternativeSet = getIPNetworkSet(config.IPNetworkFile.Alternative)
+
+	config.BlockDomainList = initDomainMatcher(config.BlockFile.DomainFile, config.BlockFile.Matcher, config.BlockFile.Matcher)
+	config.BlockIPList = getIPNetworkSet(config.BlockFile.IPFile)
 
 	{
 		var err error
