@@ -17,6 +17,7 @@ import (
 	"github.com/shawn1m/overture/core/finder"
 	finderfull "github.com/shawn1m/overture/core/finder/full"
 	finderregex "github.com/shawn1m/overture/core/finder/regex"
+	"github.com/shawn1m/overture/core/querylog"
 	"github.com/shawn1m/overture/replace"
 	log "github.com/sirupsen/logrus"
 
@@ -69,6 +70,7 @@ type Config struct {
 		IPFile     string
 		Matcher    string
 	}
+	QueryLogFile string
 
 	DomainTTLMap                map[string]uint32
 	DomainPrimaryList           matcher.Matcher
@@ -90,6 +92,10 @@ type Config struct {
 func NewConfig(configFile string) *Config {
 	config := parseJson(configFile)
 	config.FilePath = configFile
+
+	if config.QueryLogFile != "" {
+		querylog.SetQueryLogFile(config.QueryLogFile)
+	}
 
 	config.DomainTTLMap = getDomainTTLMap(config.DomainTTLFile)
 

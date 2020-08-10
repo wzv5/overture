@@ -5,6 +5,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/shawn1m/overture/core/outbound/clients/resolver"
+	"github.com/shawn1m/overture/core/querylog"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/shawn1m/overture/core/cache"
@@ -61,30 +62,44 @@ func (d *Dispatcher) Exchange(query *dns.Msg, inboundIP string) *dns.Msg {
 	localClient := clients.NewLocalClient(query, d.Hosts, d.MinimumTTL, d.DomainTTLMap)
 	resp := localClient.Exchange()
 	if resp != nil {
+		querylog.Log(inboundIP, query.Question[0].Name, "Hosts")
 		return resp
 	}
 
 	for _, cb := range []*clients.RemoteClientBundle{PrimaryClientBundle, AlternativeClientBundle} {
 		resp := cb.ExchangeFromCache()
 		if resp != nil {
+			querylog.Log(inboundIP, query.Question[0].Name, "Cache")
 			return resp
 		}
 	}
 
 	if d.OnlyPrimaryDNS || d.isSelectDomain(PrimaryClientBundle, d.DomainPrimaryList) {
 		ActiveClientBundle = PrimaryClientBundle
+		querylog.Log(inboundIP, query.Question[0].Name, "Primary")
 		return ActiveClientBundle.Exchange(true, true)
 	}
 
 	if ok := d.isExchangeForIPv6(query) || d.isSelectDomain(AlternativeClientBundle, d.DomainAlternativeList); ok {
 		ActiveClientBundle = AlternativeClientBundle
+		querylog.Log(inboundIP, query.Question[0].Name, "Alternative")
 		return ActiveClientBundle.Exchange(true, true)
 	}
 
 	if d.AlternativeFirst {
 		ActiveClientBundle = d.selectByIPNetwork_alterFirst(PrimaryClientBundle, AlternativeClientBundle)
+		if ActiveClientBundle == PrimaryClientBundle {
+			querylog.Log(inboundIP, query.Question[0].Name, "Primary")
+		} else {
+			querylog.Log(inboundIP, query.Question[0].Name, "PrimaryThenAlternative")
+		}
 	} else {
 		ActiveClientBundle = d.selectByIPNetwork(PrimaryClientBundle, AlternativeClientBundle)
+		if ActiveClientBundle == PrimaryClientBundle {
+			querylog.Log(inboundIP, query.Question[0].Name, "AlternativeThenPrimary")
+		} else {
+			querylog.Log(inboundIP, query.Question[0].Name, "Alternative")
+		}
 	}
 
 	// Only try to Cache result before return
