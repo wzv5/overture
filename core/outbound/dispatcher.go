@@ -89,16 +89,16 @@ func (d *Dispatcher) Exchange(query *dns.Msg, inboundIP string) *dns.Msg {
 	if d.AlternativeFirst {
 		ActiveClientBundle = d.selectByIPNetwork_alterFirst(PrimaryClientBundle, AlternativeClientBundle)
 		if ActiveClientBundle == PrimaryClientBundle {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Primary")
+			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "AlternativeThenPrimary")
 		} else {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "PrimaryThenAlternative")
+			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Alternative")
 		}
 	} else {
 		ActiveClientBundle = d.selectByIPNetwork(PrimaryClientBundle, AlternativeClientBundle)
 		if ActiveClientBundle == PrimaryClientBundle {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "AlternativeThenPrimary")
+			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Primary")
 		} else {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Alternative")
+			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "PrimaryThenAlternative")
 		}
 	}
 
