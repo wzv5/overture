@@ -19,6 +19,7 @@ import (
 	"github.com/shawn1m/overture/core/common"
 	"github.com/shawn1m/overture/core/matcher"
 	"github.com/shawn1m/overture/core/outbound"
+	"github.com/shawn1m/overture/replace"
 )
 
 type Server struct {
@@ -30,16 +31,20 @@ type Server struct {
 	ctx              context.Context
 	cancel           context.CancelFunc
 
-	blockDomainList matcher.Matcher
+	blockDomainList   matcher.Matcher
+	replaceDomainList *replace.DomainReplace
+	replaceIPList     *replace.IPReplace
 }
 
-func NewServer(bindAddress string, debugHTTPAddress string, dispatcher outbound.Dispatcher, rejectQType []uint16, blockDomainList matcher.Matcher) *Server {
+func NewServer(bindAddress string, debugHTTPAddress string, dispatcher outbound.Dispatcher, rejectQType []uint16, blockDomainList matcher.Matcher, replaceDomainList *replace.DomainReplace, replaceIPList *replace.IPReplace) *Server {
 	s := &Server{
-		bindAddress:      bindAddress,
-		debugHttpAddress: debugHTTPAddress,
-		dispatcher:       dispatcher,
-		rejectQType:      rejectQType,
-		blockDomainList:  blockDomainList,
+		bindAddress:       bindAddress,
+		debugHttpAddress:  debugHTTPAddress,
+		dispatcher:        dispatcher,
+		rejectQType:       rejectQType,
+		blockDomainList:   blockDomainList,
+		replaceDomainList: replaceDomainList,
+		replaceIPList:     replaceIPList,
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	s.HTTPMux = http.NewServeMux()
@@ -205,17 +210,67 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, q *dns.Msg) {
 		}
 	}
 
+	qCopy := q
+	replaceDomain := s.replaceDomainList.Find(q.Question[0].Name)
+	if replaceDomain != "" {
+		log.Debugf("replace domain: %s -> %s", q.Question[0].Name, replaceDomain)
+		qCopy = q.Copy()
+		qCopy.Question[0].Name = replaceDomain + "."
+	}
+
 	var responseMessage *dns.Msg
 	if s.isBlockDomain(q) {
 		responseMessage = common.EmptyDNSMsg(q)
 		log.Debugf("Block %s: %s", inboundIP, q.Question[0].String())
 	} else {
-		responseMessage = s.dispatcher.Exchange(q, inboundIP)
+		responseMessage = s.dispatcher.Exchange(qCopy, inboundIP)
 	}
 
 	if responseMessage == nil {
 		dns.HandleFailed(w, q)
 		return
+	}
+
+	// 在结果中还原被替换的域名
+	responseMessage.SetReply(q)
+	for _, i := range responseMessage.Answer {
+		i.Header().Name = q.Question[0].Name
+	}
+	for _, i := range responseMessage.Ns {
+		i.Header().Name = q.Question[0].Name
+	}
+	for _, i := range responseMessage.Extra {
+		i.Header().Name = q.Question[0].Name
+	}
+
+	var replaceIP net.IP
+	for _, i := range responseMessage.Answer {
+		var ip net.IP
+		if i.Header().Rrtype == dns.TypeA {
+			ip = net.ParseIP(i.(*dns.A).A.String())
+		} else if i.Header().Rrtype == dns.TypeAAAA {
+			ip = net.ParseIP(i.(*dns.AAAA).AAAA.String())
+		} else {
+			continue
+		}
+		replaceIP = s.replaceIPList.Find(ip)
+		if replaceIP != nil {
+			break
+		}
+	}
+	if replaceIP != nil {
+		log.Debugf("replace IP: %s -> %s", q.Question[0].Name, replaceIP)
+		var rr dns.RR
+		if replaceIP.To4() != nil {
+			rr, _ = dns.NewRR(responseMessage.Question[0].Name + " IN A " + replaceIP.String())
+		} else {
+			rr, _ = dns.NewRR(responseMessage.Question[0].Name + " IN AAAA " + replaceIP.String())
+		}
+		replaceMsg := new(dns.Msg)
+		replaceMsg.Answer = []dns.RR{rr}
+		replaceMsg.SetReply(q)
+		replaceMsg.RecursionAvailable = true
+		responseMessage = replaceMsg
 	}
 
 	err := w.WriteMsg(responseMessage)

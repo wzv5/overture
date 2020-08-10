@@ -17,6 +17,7 @@ import (
 	"github.com/shawn1m/overture/core/finder"
 	finderfull "github.com/shawn1m/overture/core/finder/full"
 	finderregex "github.com/shawn1m/overture/core/finder/regex"
+	"github.com/shawn1m/overture/replace"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/shawn1m/overture/core/cache"
@@ -60,6 +61,11 @@ type Config struct {
 	DomainTTLFile string
 	CacheSize     int
 	RejectQType   []uint16
+	ReplaceFile   struct {
+		DomainFile   string
+		IPFile       string
+		Finder       string
+	}
 
 	DomainTTLMap                map[string]uint32
 	DomainPrimaryList           matcher.Matcher
@@ -70,8 +76,10 @@ type Config struct {
 	Hosts                       *hosts.Hosts
 	Cache                       *cache.Cache
 
-	AlternativeFirst bool
-	BlockDomainList  matcher.Matcher
+	AlternativeFirst  bool
+	BlockDomainList   matcher.Matcher
+	ReplaceDomainList *replace.DomainReplace
+	ReplaceIPList     *replace.IPReplace
 }
 
 // New config with json file and do some other initiate works
@@ -87,6 +95,18 @@ func NewConfig(configFile string) *Config {
 
 	config.IPNetworkPrimarySet = getIPNetworkSet(config.IPNetworkFile.Primary)
 	config.IPNetworkAlternativeSet = getIPNetworkSet(config.IPNetworkFile.Alternative)
+
+	{
+		var err error
+		config.ReplaceDomainList, err = replace.NewDomainReplace(config.ReplaceFile.DomainFile, getFinder(config.ReplaceFile.Finder))
+		if err != nil {
+			log.Warnf("failed to load domain replace list: %v", err)
+		}
+		config.ReplaceIPList, err = replace.NewIPReplace(config.ReplaceFile.IPFile, getFinder(config.ReplaceFile.Finder))
+		if err != nil {
+			log.Warnf("failed to load ip replace list: %v", err)
+		}
+	}
 
 	if config.MinimumTTL > 0 {
 		log.Infof("Minimum TTL has been set to %d", config.MinimumTTL)
