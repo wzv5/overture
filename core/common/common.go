@@ -84,6 +84,8 @@ func SetTTLByMap(msg *dns.Msg, domainTTLMap map[string]uint32) {
 
 func EmptyDNSMsg(query *dns.Msg) *dns.Msg {
 	msg := new(dns.Msg)
+	soa, _ := dns.NewRR(query.Question[0].Name + " IN SOA ns.local. hostmaster.local. 1 7200 3600 1209600 3600")
+	msg.Ns = append(msg.Ns, soa)
 	msg.SetReply(query)
 	msg.RecursionAvailable = true
 	return msg

@@ -80,7 +80,7 @@ func (c *LocalClient) exchangeFromHosts() bool {
 	// 如果 hosts 只指定了 IPv4，但请求 AAAA，返回空
 	if (len(ipv4List) > 0 || len(ipv6List) > 0) &&
 		(c.questionMessage.Question[0].Qtype == dns.TypeA || c.questionMessage.Question[0].Qtype == dns.TypeAAAA) {
-		c.setLocalResponseMessage(nil)
+		c.responseMessage = common.EmptyDNSMsg(c.questionMessage)
 		return true
 	}
 
