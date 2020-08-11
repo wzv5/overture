@@ -135,20 +135,16 @@ var MaxCapacity = 15
 var MaxIdle = 2
 
 func (r *BaseResolver) setTimeout(conn net.Conn) {
-	dnsTimeout := time.Duration(r.dnsUpstream.Timeout) * time.Second / 3
+	dnsTimeout := time.Duration(r.dnsUpstream.Timeout) * time.Second
 	conn.SetDeadline(time.Now().Add(dnsTimeout))
-	conn.SetReadDeadline(time.Now().Add(dnsTimeout))
-	conn.SetWriteDeadline(time.Now().Add(dnsTimeout))
 }
 
 func (r *BaseResolver) getDialTimeout() time.Duration {
-	return time.Duration(r.dnsUpstream.Timeout) * time.Second / 3
+	return time.Duration(r.dnsUpstream.Timeout) * time.Second
 }
 
 func (r *BaseResolver) setIdleTimeout(conn net.Conn) {
 	conn.SetDeadline(time.Now().Add(IdleTimeout))
-	conn.SetReadDeadline(time.Now().Add(IdleTimeout))
-	conn.SetWriteDeadline(time.Now().Add(IdleTimeout))
 }
 
 func (r *BaseResolver) createConnectionPool(connCreate func() (interface{}, error), connClose func(interface{}) error) (pool.Pool, error) {
