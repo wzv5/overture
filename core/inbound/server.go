@@ -208,7 +208,7 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, q *dns.Msg) {
 	for _, qt := range s.rejectQType {
 		if isQuestionType(q, qt) {
 			log.Debugf("Reject %s: %s", inboundIP, q.Question[0].String())
-			querylog.Log(inboundIP, q.Question[0].Name, q.Question[0].Qtype, "Block")
+			querylog.Log(inboundIP, q, "Block")
 			dns.HandleFailed(w, q)
 			return
 		}

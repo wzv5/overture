@@ -62,43 +62,43 @@ func (d *Dispatcher) Exchange(query *dns.Msg, inboundIP string) *dns.Msg {
 	localClient := clients.NewLocalClient(query, d.Hosts, d.MinimumTTL, d.DomainTTLMap)
 	resp := localClient.Exchange()
 	if resp != nil {
-		querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Hosts")
+		querylog.Log(inboundIP, query, "Hosts")
 		return resp
 	}
 
 	for _, cb := range []*clients.RemoteClientBundle{PrimaryClientBundle, AlternativeClientBundle} {
 		resp := cb.ExchangeFromCache()
 		if resp != nil {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Cache")
+			querylog.Log(inboundIP, query, "Cache")
 			return resp
 		}
 	}
 
 	if d.OnlyPrimaryDNS || d.isSelectDomain(PrimaryClientBundle, d.DomainPrimaryList) {
 		ActiveClientBundle = PrimaryClientBundle
-		querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Primary")
+		querylog.Log(inboundIP, query, "Primary")
 		return ActiveClientBundle.Exchange(true, true)
 	}
 
 	if ok := d.isExchangeForIPv6(query) || d.isSelectDomain(AlternativeClientBundle, d.DomainAlternativeList); ok {
 		ActiveClientBundle = AlternativeClientBundle
-		querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Alternative")
+		querylog.Log(inboundIP, query, "Alternative")
 		return ActiveClientBundle.Exchange(true, true)
 	}
 
 	if d.AlternativeFirst {
 		ActiveClientBundle = d.selectByIPNetwork_alterFirst(PrimaryClientBundle, AlternativeClientBundle)
 		if ActiveClientBundle == PrimaryClientBundle {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "AlternativeThenPrimary")
+			querylog.Log(inboundIP, query, "AlternativeThenPrimary")
 		} else {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Alternative")
+			querylog.Log(inboundIP, query, "Alternative")
 		}
 	} else {
 		ActiveClientBundle = d.selectByIPNetwork(PrimaryClientBundle, AlternativeClientBundle)
 		if ActiveClientBundle == PrimaryClientBundle {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "Primary")
+			querylog.Log(inboundIP, query, "Primary")
 		} else {
-			querylog.Log(inboundIP, query.Question[0].Name, query.Question[0].Qtype, "PrimaryThenAlternative")
+			querylog.Log(inboundIP, query, "PrimaryThenAlternative")
 		}
 	}
 

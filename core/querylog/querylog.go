@@ -19,6 +19,6 @@ func SetQueryLogFile(filename string) error {
 	return nil
 }
 
-func Log(ip string, domain string, query uint16, tag string) {
-	logger.Printf("%s: %s %s [%s]\n", ip, strings.TrimRight(domain, "."), dns.Type(query).String(), tag)
+func Log(ip string, query *dns.Msg, tag string) {
+	logger.Printf("%s %s %s [%s]\n", ip, strings.TrimRight(query.Question[0].Name, "."), dns.Type(query.Question[0].Qtype).String(), tag)
 }
