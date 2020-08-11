@@ -130,7 +130,7 @@ func (r *BaseResolver) CreateBaseConn() (net.Conn, error) {
 }
 
 var InitialCapacity = 0
-var IdleTimeout = 30 * time.Second
+var IdleTimeout = 8 * time.Second
 var MaxCapacity = 15
 var MaxIdle = 2
 
