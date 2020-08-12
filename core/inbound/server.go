@@ -235,6 +235,9 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, q *dns.Msg) {
 		return
 	}
 
+	// 复制一份，避免修改原始对象
+	responseMessage = responseMessage.Copy()
+
 	var answer []dns.RR
 	for _, i := range responseMessage.Answer {
 		var ip net.IP
