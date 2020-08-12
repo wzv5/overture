@@ -8,7 +8,9 @@
 package clients
 
 import (
+	"fmt"
 	"net"
+	"sync"
 
 	"github.com/miekg/dns"
 	log "github.com/sirupsen/logrus"
@@ -28,11 +30,17 @@ type RemoteClient struct {
 	dnsResolver        resolver.Resolver
 
 	cache *cache.Cache
+
+	lock   sync.Mutex
+	reqKey string
 }
+
+var pendingRequest sync.Map
 
 func NewClient(q *dns.Msg, u *common.DNSUpstream, resolver resolver.Resolver, ip string, cache *cache.Cache) *RemoteClient {
 	c := &RemoteClient{questionMessage: q.Copy(), dnsUpstream: u, dnsResolver: resolver, inboundIP: ip, cache: cache}
 	c.getEDNSClientSubnetIP()
+	c.reqKey = fmt.Sprintf("%s %d %s %s", q.Question[0].Name, q.Question[0].Qtype, c.ednsClientSubnetIP, u.Name)
 
 	return c
 }
@@ -65,6 +73,22 @@ func (c *RemoteClient) ExchangeFromCache() *dns.Msg {
 }
 
 func (c *RemoteClient) Exchange(isLog bool) *dns.Msg {
+
+	if c1, ok := pendingRequest.LoadOrStore(c.reqKey, c); ok {
+		log.Debugf("found pending client %s", c.reqKey)
+		msg := c1.(*RemoteClient)._exchange(isLog)
+		c.responseMessage = msg
+		return msg
+	}
+
+	defer pendingRequest.Delete(c.reqKey)
+	return c._exchange(isLog)
+}
+
+func (c *RemoteClient) _exchange(isLog bool) *dns.Msg {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	common.SetEDNSClientSubnet(c.questionMessage, c.ednsClientSubnetIP,
 		c.dnsUpstream.EDNSClientSubnet.NoCookie)
 	c.ednsClientSubnetIP = common.GetEDNSClientSubnetIP(c.questionMessage)
