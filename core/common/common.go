@@ -90,3 +90,15 @@ func EmptyDNSMsg(query *dns.Msg) *dns.Msg {
 	msg.RecursionAvailable = true
 	return msg
 }
+
+func IsEmptyAndNoSOA(msg *dns.Msg) bool {
+	if len(msg.Answer) > 0 {
+		return false
+	}
+	for _, i := range msg.Ns {
+		if i.Header().Rrtype == dns.TypeSOA {
+			return false
+		}
+	}
+	return true
+}
