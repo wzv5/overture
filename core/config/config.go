@@ -34,7 +34,7 @@ import (
 
 type Config struct {
 	FilePath                 string
-	BindAddress              string
+	BindAddress              []string
 	DebugHTTPAddress         string
 	PrimaryDNS               []*common.DNSUpstream
 	AlternativeDNS           []*common.DNSUpstream

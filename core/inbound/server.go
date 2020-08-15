@@ -24,7 +24,7 @@ import (
 )
 
 type Server struct {
-	bindAddress      string
+	bindAddress      []string
 	debugHttpAddress string
 	dispatcher       outbound.Dispatcher
 	rejectQType      []uint16
@@ -38,7 +38,7 @@ type Server struct {
 	replaceIPList     *replace.IPReplace
 }
 
-func NewServer(bindAddress string, debugHTTPAddress string, dispatcher outbound.Dispatcher, rejectQType []uint16, blockDomainList matcher.Matcher, blockIPList *common.IPSet, replaceDomainList *replace.DomainReplace, replaceIPList *replace.IPReplace) *Server {
+func NewServer(bindAddress []string, debugHTTPAddress string, dispatcher outbound.Dispatcher, rejectQType []uint16, blockDomainList matcher.Matcher, blockIPList *common.IPSet, replaceDomainList *replace.DomainReplace, replaceIPList *replace.IPReplace) *Server {
 	s := &Server{
 		bindAddress:       bindAddress,
 		debugHttpAddress:  debugHTTPAddress,
@@ -119,27 +119,29 @@ func (s *Server) Run() {
 	mux.Handle(".", s)
 
 	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	wg.Add(2 * len(s.bindAddress))
 
 	log.Infof("Overture is listening on %s", s.bindAddress)
 
-	for _, p := range [2]string{"tcp", "udp"} {
-		go func(p string) {
+	for _, a := range s.bindAddress {
+		for _, p := range [2]string{"tcp", "udp"} {
+			go func(p string, a string) {
 
-			// Manual create server inorder to have a way to close it.
-			srv := &dns.Server{Addr: s.bindAddress, Net: p, Handler: mux}
-			go func() {
-				<-s.ctx.Done()
-				log.Warnf("Shutting down the server on protocol %s", p)
-				srv.ShutdownContext(s.ctx)
-			}()
-			err := srv.ListenAndServe()
-			if err != nil {
-				log.Fatalf("Listening on port %s failed: %s", p, err)
-				os.Exit(1)
-			}
-			wg.Done()
-		}(p)
+				// Manual create server inorder to have a way to close it.
+				srv := &dns.Server{Addr: a, Net: p, Handler: mux}
+				go func() {
+					<-s.ctx.Done()
+					log.Warnf("Shutting down the server on protocol %s", p)
+					srv.ShutdownContext(s.ctx)
+				}()
+				err := srv.ListenAndServe()
+				if err != nil {
+					log.Fatalf("Listening on port %s failed: %s", p, err)
+					os.Exit(1)
+				}
+				wg.Done()
+			}(p, a)
+		}
 	}
 
 	if s.debugHttpAddress != "" {
