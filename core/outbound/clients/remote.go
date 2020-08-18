@@ -130,8 +130,4 @@ func (c *RemoteClient) logAnswer(indicator string) {
 		}
 		log.Debugf("Answer from %s: %s", name, a.String())
 	}
-
-	if common.GetEDNSClientSubnetIP(c.questionMessage) != "" && common.GetEDNSClientSubnetIP(c.responseMessage) == "" {
-		log.Warnf("服务器不支持 EDNS：%s", c.dnsUpstream.Name)
-	}
 }
