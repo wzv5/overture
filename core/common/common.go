@@ -91,9 +91,12 @@ func EmptyDNSMsg(query *dns.Msg) *dns.Msg {
 	return msg
 }
 
-func IsEmptyAndNoSOA(msg *dns.Msg) bool {
-	if len(msg.Answer) > 0 {
-		return false
+func IsEmptyAndNoSOA(q, msg *dns.Msg) bool {
+	qtype := q.Question[0].Qtype
+	for _, i := range msg.Answer {
+		if i.Header().Rrtype == qtype {
+			return false
+		}
 	}
 	for _, i := range msg.Ns {
 		if i.Header().Rrtype == dns.TypeSOA {
