@@ -18,7 +18,7 @@ import (
 	finderfull "github.com/shawn1m/overture/core/finder/full"
 	finderregex "github.com/shawn1m/overture/core/finder/regex"
 	"github.com/shawn1m/overture/core/querylog"
-	"github.com/shawn1m/overture/replace"
+	"github.com/shawn1m/overture/core/replace"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/shawn1m/overture/core/cache"

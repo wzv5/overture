@@ -20,7 +20,7 @@ import (
 	"github.com/shawn1m/overture/core/matcher"
 	"github.com/shawn1m/overture/core/outbound"
 	"github.com/shawn1m/overture/core/querylog"
-	"github.com/shawn1m/overture/replace"
+	"github.com/shawn1m/overture/core/replace"
 )
 
 type Server struct {
