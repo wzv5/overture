@@ -277,6 +277,18 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, q *dns.Msg) {
 		responseMessage = replaceMsg
 	}
 
+	if w.RemoteAddr().Network() == "udp" {
+		udpsize := dns.MinMsgSize
+		edns0 := q.IsEdns0()
+		if edns0 != nil {
+			s := int(edns0.UDPSize())
+			if s > udpsize {
+				udpsize = s
+			}
+		}
+		responseMessage.Truncate(udpsize)
+	}
+
 	err := w.WriteMsg(responseMessage)
 	if err != nil {
 		log.Warnf("Write message failed, message: %s, error: %s", responseMessage, err)
