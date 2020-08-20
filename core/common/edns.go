@@ -12,7 +12,7 @@ type EDNSClientSubnetType struct {
 	NoCookie   bool
 }
 
-func SetEDNSClientSubnet(m *dns.Msg, ip string, isNoCookie bool) {
+func SetEDNSClientSubnet(m *dns.Msg, ip string) {
 	if ip == "" {
 		return
 	}
@@ -26,7 +26,7 @@ func SetEDNSClientSubnet(m *dns.Msg, ip string, isNoCookie bool) {
 		m.Extra = append(m.Extra, o)
 	}
 
-	es := IsEDNSClientSubnet(o)
+	es := isEDNSClientSubnet(o)
 	if es == nil {
 		es = new(dns.EDNS0_SUBNET)
 		es.Code = dns.EDNS0SUBNET
@@ -40,13 +40,14 @@ func SetEDNSClientSubnet(m *dns.Msg, ip string, isNoCookie bool) {
 		}
 		es.SourceScope = 0
 		o.Option = append(o.Option, es)
-		if isNoCookie {
-			deleteCookie(o)
-		}
 	}
 }
 
-func deleteCookie(o *dns.OPT) {
+func DeleteCookie(m *dns.Msg) {
+	o := m.IsEdns0()
+	if o == nil {
+		return
+	}
 	for i, e0 := range o.Option {
 		switch e0.(type) {
 		case *dns.EDNS0_COOKIE:
@@ -55,7 +56,7 @@ func deleteCookie(o *dns.OPT) {
 	}
 }
 
-func IsEDNSClientSubnet(o *dns.OPT) *dns.EDNS0_SUBNET {
+func isEDNSClientSubnet(o *dns.OPT) *dns.EDNS0_SUBNET {
 	for _, s := range o.Option {
 		switch e := s.(type) {
 		case *dns.EDNS0_SUBNET:

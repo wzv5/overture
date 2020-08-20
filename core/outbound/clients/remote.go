@@ -89,9 +89,12 @@ func (c *RemoteClient) _exchange(isLog bool) *dns.Msg {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	common.SetEDNSClientSubnet(c.questionMessage, c.ednsClientSubnetIP,
-		c.dnsUpstream.EDNSClientSubnet.NoCookie)
+	common.SetEDNSClientSubnet(c.questionMessage, c.ednsClientSubnetIP)
 	c.ednsClientSubnetIP = common.GetEDNSClientSubnetIP(c.questionMessage)
+
+	if c.dnsUpstream.EDNSClientSubnet.NoCookie {
+		common.DeleteCookie(c.questionMessage)
+	}
 
 	if c.responseMessage != nil {
 		return c.responseMessage
