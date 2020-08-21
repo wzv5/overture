@@ -236,15 +236,18 @@ func (s *Server) ServeDNS(w dns.ResponseWriter, q *dns.Msg) {
 	responseMessage.Answer = answer
 
 	// 在结果中还原被替换的域名
-	responseMessage.SetReply(q)
-	for _, i := range responseMessage.Answer {
-		i.Header().Name = q.Question[0].Name
-	}
-	for _, i := range responseMessage.Ns {
-		i.Header().Name = q.Question[0].Name
-	}
-	for _, i := range responseMessage.Extra {
-		i.Header().Name = q.Question[0].Name
+	if qCopy != q {
+		responseMessage.SetReply(q)
+		restoreName := func(rr []dns.RR) {
+			for _, i := range rr {
+				if i.Header().Name == qCopy.Question[0].Name {
+					i.Header().Name = q.Question[0].Name
+				}
+			}
+		}
+		restoreName(responseMessage.Answer)
+		restoreName(responseMessage.Ns)
+		restoreName(responseMessage.Extra)
 	}
 
 	var replaceIP net.IP
