@@ -55,20 +55,27 @@ func (cb *RemoteClientBundle) Exchange(isCache bool, isLog bool) *dns.Msg {
 		}(o, ch)
 	}
 
-	var ec *RemoteClient
+	var ec, fallbackec *RemoteClient
 
 	for i := 0; i < len(cb.clients); i++ {
 		c := <-ch
-		if c != nil {
-			ec = c
-			if ec.responseMessage != nil && ec.responseMessage.Answer != nil {
+		if c != nil && c.responseMessage != nil {
+			if common.HasType(c.responseMessage, c.questionMessage.Question[0].Qtype) {
+				ec = c
 				break
 			}
-			log.Debugf("DNSUpstream %s returned None answer, dropping it and wait the next one", ec.dnsUpstream.Address)
+			if c.responseMessage.Answer != nil || common.HasSOA(c.responseMessage) {
+				fallbackec = c
+			}
+			log.Debugf("DNSUpstream %s returned None answer, dropping it and wait the next one", c.dnsUpstream.Address)
 		}
 	}
 
-	if ec != nil && ec.responseMessage != nil {
+	if ec == nil && fallbackec != nil {
+		ec = fallbackec
+	}
+
+	if ec != nil {
 		cb.responseMessage = ec.responseMessage
 		cb.questionMessage = ec.questionMessage
 

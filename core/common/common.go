@@ -105,3 +105,21 @@ func IsEmptyAndNoSOA(q, msg *dns.Msg) bool {
 	}
 	return true
 }
+
+func HasSOA(msg *dns.Msg) bool {
+	for _, i := range msg.Ns {
+		if i.Header().Rrtype == dns.TypeSOA {
+			return true
+		}
+	}
+	return false
+}
+
+func HasType(msg *dns.Msg, qtype uint16) bool {
+	for _, i := range msg.Answer {
+		if i.Header().Rrtype == qtype {
+			return true
+		}
+	}
+	return false
+}
