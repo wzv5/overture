@@ -7,6 +7,8 @@
 package clients
 
 import (
+	"strings"
+
 	"github.com/miekg/dns"
 	"github.com/shawn1m/overture/core/outbound/clients/resolver"
 	log "github.com/sirupsen/logrus"
@@ -76,6 +78,8 @@ func (cb *RemoteClientBundle) Exchange(isCache bool, isLog bool) *dns.Msg {
 		if isCache {
 			cb.CacheResultIfNeeded()
 		}
+	} else {
+		log.Errorf("All upstream failed: %s %s [%s]", strings.TrimRight(cb.questionMessage.Question[0].Name, "."), dns.Type(cb.questionMessage.Question[0].Qtype).String(), cb.Name)
 	}
 
 	return cb.responseMessage
