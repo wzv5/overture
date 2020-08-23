@@ -41,5 +41,8 @@ vendor/
 
 overture-*
 *.log
+*.bat
 
 config.dev.json
+
+.vscode

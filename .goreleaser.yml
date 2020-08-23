@@ -1,0 +1,42 @@
+before:
+  hooks:
+    - go mod download
+builds:
+- env:
+    - CGO_ENABLED=0
+  dir: main
+  goos:
+    - linux
+    - darwin
+    - windows
+  goarch:
+    - 386
+    - amd64
+  ignore:
+    - goos: darwin
+      goarch: 386
+archives:
+- format: zip
+  files:
+    - LICENSE
+    - README.md
+    - config.json
+    - block_domain.txt
+    - block_ip.txt
+    - replace_domain.txt
+    - replace_ip.txt
+    - hosts.txt
+    - primary_domain.txt
+    - alternative_domain.txt
+    - primary_ip.txt
+    - alternative_ip.txt
+checksum:
+  name_template: 'checksums.txt'
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
+    - Merge pull request
+    - Merge branch

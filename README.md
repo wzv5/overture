@@ -1,317 +1,38 @@
 # overture
-[![Build Status](https://travis-ci.org/shawn1m/overture.svg)](https://travis-ci.org/shawn1m/overture)
-[![Build status](https://ci.appveyor.com/api/projects/status/gqrixsfcmmrcaohr/branch/master?svg=true)](https://ci.appveyor.com/project/shawn1m/overture/branch/master)
-[![GoDoc](https://godoc.org/github.com/shawn1m/overture?status.svg)](https://godoc.org/github.com/shawn1m/overture)
-[![Go Report Card](https://goreportcard.com/badge/github.com/shawn1m/overture)](https://goreportcard.com/report/github.com/shawn1m/overture)
-[![codecov](https://codecov.io/gh/shawn1m/overture/branch/master/graph/badge.svg)](https://codecov.io/gh/shawn1m/overture)
 
-Overture is a DNS server/forwarder/dispatcher written in Go.
+本项目是对 [overture](https://github.com/shawn1m/overture) 的魔改，由于改动较大，且不再兼容原版配置文件，故决定单独发布。
 
-Overture means an orchestral piece at the beginning of a classical music composition, just like DNS which is nearly the
-first step of surfing the Internet.
+相比原版改动如下：
 
-**Please note:** 
-- **Read the entire README document is necessary if you want to use overture safe and sound.** 
-- **Production usage is not recommended and there is no guarantee or warranty of it.**
-- **If you are using the binary releases, please follow the instructions in the README file with
-  corresponding git version tag. The README in master branch are subject to change and does not always reflect the correct
-   instructions to your binary release version.**
-   
-## Features
+- 监听地址改为数组，可设置多个监听地址【不兼容原版配置文件】
+- 新增屏蔽域名和屏蔽 IP 功能，可用于广告过滤等用途
+- 新增替换域名和替换 IP 功能
+- 新增独立查询日志文件，便于审查请求
+- 缓存正在进行中的请求，防止同时重复发出同一个请求
+- UDP 上游如果返回 truncated 消息，自动切换到 TCP 再次请求
+- 对于 UDP 客户端，在必要时截断响应，以符合 DNS 标准
+- 对于主动返回的空结果（hosts、屏蔽域名），增加 SOA 记录
+- 连接池增加 MaxIdle 设置，以兼容最新版连接池库
+- 连接池默认 IdleTimeout 改为 8 秒，因为主流公共服务器均为 10 秒超时
+- 如果设置了 NoCookie，即使不设置 Client IP 也会生效，以兼容 dnspod 上游
+- 优化结果判断，增加查询类型判断（如查询 AAAA 但只返回了 CNAME），优化对 SOA 结果的处理
+- 优化缓存策略，不再缓存不含 SOA 的空结果，不再缓存查询类型不匹配的结果
+- 优化错误日志，当所有上游都失败时输出查询摘要，便于检查问题
+- edns clinet subnet mask 设置为 /16(IPv4) 和 /56(IPv6)
+- 调度器增加 AlternativeFirst 选项，避免隐私泄露给主服务器（自用瞎改）
+- ~~修复 suffix-tree 无法匹配的问题（原项目已合并 [#239](https://github.com/shawn1m/overture/pull/239)）~~
+- ~~修复 hosts 与主流逻辑不符合的问题（原项目已合并 [#240](https://github.com/shawn1m/overture/pull/240)）~~
 
-+ Full IPv6 support
-+ Multiple DNS upstream
-    + Via UDP/TCP with custom port
-    + Via SOCKS5 proxy (TCP only)
-    + With EDNS Client Subnet (ECS) [RFC7871](https://tools.ietf.org/html/rfc7871)
-+ Dispatcher
-    + IPv6 record (AAAA) redirection
-    + Custom domain
-    + Custom IP network
-+ Minimum TTL modification
-+ Hosts (Both IPv4 and IPv6 is supported. IPs will be returned in random order, if you want to use regex match, please understand regex first)
-+ Cache with ECS
+## 下载
 
-### Dispatch process
+<https://github.com/wzv5/overture/releases/latest>
 
-Overture can force custom domain DNS queries to use selected DNS when applicable.
+或通过 [Scoop](https://scoop.sh):
 
-For custom IP network, overture will query the domain with primary DNS firstly. If the answer is empty or the IP
-is not matched then overture will finally use the alternative DNS servers.
-
-## Installation
-
-You can download binary releases from the [release](https://github.com/shawn1m/overture/releases).
-
-For ArchLinux users, package `overture` is available in AUR. If you use a AUR helper i.e. `yaourt`, you can simply run:
-
-    yaourt -S overture
-
-## Usages
-
-Start with the default config file -> ./config.json
-
-    $ ./overture
-
-Or use your own config file:
-
-    $ ./overture -c /path/to/config.json
-
-Verbose mode:
-
-    $ ./overture -v
-
-Log to file:
-
-    $ ./overture -l /path/to/overture.log
-
-For other options, please see help:
-
-    $ ./overture -h
-
-Tips:
-
-+ Root privilege is required if you are listening on port 53.
-+ For Windows users, you can run overture on command prompt instead of double click.
-
-###  Configuration Syntax
-
-Configuration file is "config.json" by default:
-
-```json
-{
-  "BindAddress": ":53",
-  "DebugHTTPAddress": "127.0.0.1:5555",
-  "PrimaryDNS": [
-    {
-      "Name": "DNSPod",
-      "Address": "119.29.29.29:53",
-      "Protocol": "udp",
-      "SOCKS5Address": "",
-      "Timeout": 6,
-      "EDNSClientSubnet": {
-        "Policy": "disable",
-        "ExternalIP": "",
-        "NoCookie": true
-      }
-    }
-  ],
-  "AlternativeDNS": [
-    {
-      "Name": "114DNS",
-      "Address": "114.114.114.114:53",
-      "Protocol": "udp",
-      "SOCKS5Address": "",
-      "Timeout": 6,
-      "EDNSClientSubnet": {
-        "Policy": "disable",
-        "ExternalIP": "",
-        "NoCookie": true
-      }
-    }
-  ],
-  "OnlyPrimaryDNS": false,
-  "IPv6UseAlternativeDNS": false,
-  "AlternativeDNSConcurrent": false,
-  "WhenPrimaryDNSAnswerNoneUse": "PrimaryDNS",
-  "IPNetworkFile": {
-    "Primary": "./ip_network_primary_sample",
-    "Alternative": "./ip_network_alternative_sample"
-  },
-  "DomainFile": {
-    "Primary": "./domain_primary_sample",
-    "Alternative": "./domain_alternative_sample",
-    "Matcher":  "full-map"
-  },
-  "HostsFile": {
-    "HostsFile": "./hosts_sample",
-    "Finder": "full-map"
-  },
-  "MinimumTTL": 0,
-  "DomainTTLFile" : "./domain_ttl_sample",
-  "CacheSize" : 0,
-  "RejectQType": [255]
-}
+``` text
+scoop bucket add wzv5 https://github.com/wzv5/ScoopBucket
+scoop install wzv5/overture
 ```
-
-Tips:
-
-+ BindAddress: Specifying only port (e.g. `:53`) will have overture listen on all available addresses (both IPv4 and
-IPv6). Overture will handle both TCP and UDP requests. Literal IPv6 addresses are enclosed in square brackets (e.g. `[2001:4860:4860::8888]:53`)
-+ DebugHTTPAddress: Specifying an HTTP port for debugging (**`5555` is the default port but it is also acknowledged as the android wifi adb listener port**), currently used to dump DNS cache, and the request url is `/cache`, available query argument is `nobody`(boolean)
-
-    * true(default): only get the cache size;
-
-        ```bash
-        $ curl 127.0.0.1:5555/cache | jq
-        {
-          "length": 1,
-          "capacity": 100,
-          "body": {}
-        }
-        ```
-
-    * false: get cache size along with cache detail.
-
-        ```bash
-        $ curl 127.0.0.1:5555/cache?nobody=false | jq
-        {
-          "length": 1,
-          "capacity": 100,
-          "body": {
-            "www.baidu.com. 1": [
-              {
-                "name": "www.baidu.com.",
-                "ttl": 1140,
-                "type": "CNAME",
-                "rdata": "www.a.shifen.com."
-              },
-              {
-                "name": "www.a.shifen.com.",
-                "ttl": 300,
-                "type": "CNAME",
-                "rdata": "www.wshifen.com."
-              },
-              {
-                "name": "www.wshifen.com.",
-                "ttl": 300,
-                "type": "A",
-                "rdata": "104.193.88.123"
-              },
-              {
-                "name": "www.wshifen.com.",
-                "ttl": 300,
-                "type": "A",
-                "rdata": "104.193.88.77"
-              }
-            ]
-          }
-        }
-        ```
-
-+ DNS: You can specify multiple DNS upstream servers here.
-    + Name: This field is only used for logging.
-    + Address: Same as BindAddress.
-    + Protocol: `tcp`, `udp`, `tcp-tls` or `https`
-        + `tcp-tls`: Address format is "servername:port@serverAddress", try one.one.one.one:853 or one.one.one.one:853@1.1.1.1
-        + `https`: Just try https://cloudflare-dns.com/dns-query
-        +  Check [DNS Privacy Public Resolvers](https://dnsprivacy.org/wiki/display/DP/DNS+Privacy+Public+Resolvers) for more public `tcp-tls`, `https` resolvers.
-    + SOCKS5Address: Forward dns query to this SOCKS5 proxy, `“”` to disable.
-    + EDNSClientSubnet: Used to improve DNS accuracy. Please check [RFC7871](https://tools.ietf.org/html/rfc7871) for
-    details.
-        + Policy
-            + `auto`: If client IP is not in the reserved IP network, use client IP. Otherwise, use external IP.
-            + `manual`: Use external IP if this field is not empty, otherwise use client IP if it is not reserved IP.
-            + `disable`: Disable this feature.
-        + ExternalIP: If this field is empty, ECS will be disabled when the inbound IP is not an external IP.
-        + NoCookie: Disable cookie.
-+ OnlyPrimaryDNS: Disable dispatcher feature, use primary DNS only.
-+ IPv6UseAlternativeDNS: Redirect IPv6 DNS queries to alternative DNS servers.
-+ AlternativeDNSConcurrent: Query the PrimaryDNS and AlternativeDNS at the same time
-+ WhenPrimaryDNSAnswerNoneUse: If the response of PrimaryDNS exists and there is no `ANSWER SECTION` in it, the final DNS should be defined. (There is no `AAAA` record for most domains right now) 
-+ File: Absolute path like `/path/to/file` is allowed. For Windows users, please use properly escaped path like
-  `C:\\path\\to\\file.txt` in the configuration.
-+ DomainFile.Matcher: Matching policy and implementation, including "full-list", "full-map", "regex-list", "mix-list", "suffix-tree" and "final". Default value is "full-map".
-+ HostsFile.Finder: Finder policy and implementation, including "full-map", "regex-list". Default value is "full-map".
-+ DomainTTLFile: Regex match only for now;
-+ MinimumTTL: Set the minimum TTL value (in seconds) in order to improve caching efficiency, use `0` to disable.
-+ CacheSize: The number of query record to cache, use `0` to disable.
-+ RejectQType: Reject inbound query with specific DNS record types, check [List of DNS record types](https://en.wikipedia.org/wiki/List_of_DNS_record_types) for details.
-
-#### Domain file example (full match)
-
-    example.com
-
-#### Domain file example (regex match)
-
-    ^xxx.xx
-    
-#### IP network file example (CIDR match)
-
-    1.0.1.0/24
-    ::1/128
-    
-#### Domain TTL file example (regex match)
- 
-     example.com$ 100
-
-#### Hosts file example (full match)
-
-    127.0.0.1 localhost
-    ::1 localhost
-    
-#### Hosts file example (regex match)
-
-    10.8.0.1 example.com$
-
-#### DNS servers with ECS support
-
-+ DNSPod 119.29.29.29:53
-
-**For DNSPod, ECS only works via udp, you can test it by [patched dig](https://www.gsic.uva.es/~jnisigl/dig-edns-client-subnet.html)**
-
-You can compare the response IP with the client IP to test the feature. The accuracy depends on the server side.
-
-```
-$ dig @119.29.29.29 www.qq.com +client=119.29.29.29
-
-; <<>> DiG 9.9.3 <<>> @119.29.29.29 www.qq.com +client=119.29.29.29
-; (1 server found)
-;; global options: +cmd
-;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 64995
-;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
-
-;; OPT PSEUDOSECTION:
-; EDNS: version: 0, flags:; udp: 4096
-; CLIENT-SUBNET: 119.29.29.29/32/24
-;; QUESTION SECTION:
-;www.qq.com.            IN  A
-
-;; ANSWER SECTION:
-www.qq.com.     300 IN  A   101.226.103.106
-
-;; Query time: 52 msec
-;; SERVER: 119.29.29.29#53(119.29.29.29)
-;; WHEN: Wed Mar 08 18:00:52 CST 2017
-;; MSG SIZE  rcvd: 67
-```
-
-```
-$ dig @119.29.29.29 www.qq.com +client=119.29.29.29 +tcp
-
-; <<>> DiG 9.9.3 <<>> @119.29.29.29 www.qq.com +client=119.29.29.29 +tcp
-; (1 server found)
-;; global options: +cmd
-;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 58331
-;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 0, ADDITIONAL: 1
-
-;; OPT PSEUDOSECTION:
-; EDNS: version: 0, flags:; udp: 4096
-;; QUESTION SECTION:
-;www.qq.com.            IN  A
-
-;; ANSWER SECTION:
-www.qq.com.     43  IN  A   59.37.96.63
-www.qq.com.     43  IN  A   14.17.32.211
-www.qq.com.     43  IN  A   14.17.42.40
-
-;; Query time: 81 msec
-;; SERVER: 119.29.29.29#53(119.29.29.29)
-;; WHEN: Wed Mar 08 18:01:32 CST 2017
-;; MSG SIZE  rcvd: 87
-```
-
-## Acknowledgements
-
-+ Dependencies:
-    + [dns](https://github.com/miekg/dns): BSD-3-Clause
-    + [logrus](https://github.com/Sirupsen/logrus): MIT
-+ Code reference:
-    + [skydns](https://github.com/skynetservices/skydns): MIT
-    + [go-dnsmasq](https://github.com/janeczku/go-dnsmasq):  MIT
-+ Contributors: https://github.com/shawn1m/overture/graphs/contributors
 
 ## License
 
