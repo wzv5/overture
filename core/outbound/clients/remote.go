@@ -73,12 +73,16 @@ func (c *RemoteClient) ExchangeFromCache() *dns.Msg {
 }
 
 func (c *RemoteClient) Exchange(isLog bool) *dns.Msg {
-
 	if c1, ok := pendingRequest.LoadOrStore(c.reqKey, c); ok {
 		log.Debugf("found pending client %s", c.reqKey)
 		msg := c1.(*RemoteClient)._exchange(isLog)
-		c.responseMessage = msg
-		return msg
+		if msg == nil {
+			c.responseMessage = nil
+			return nil
+		}
+		c.responseMessage = msg.Copy()
+		c.responseMessage.SetReply(c.questionMessage)
+		return c.responseMessage
 	}
 
 	defer pendingRequest.Delete(c.reqKey)
